@@ -1,3 +1,4 @@
+<img width="1672" height="941" alt="1000002172_2_uh63" src="https://github.com/user-attachments/assets/81c4bab9-8b10-440f-a6a7-9f18e6d34eed" />
 [中文](./README.zh-CN.md) | English
 
 <div align="center">
