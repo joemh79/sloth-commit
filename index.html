@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SlothCommit 🦥 — Never stare at a commit box again</title>
+<meta name="description" content="Paste your git diff, get a clean conventional commit message + PR description. Powered by open-weight AI, running on your own terms.">
+<style>
+:root{--bg:#faf8f3;--ink:#1a1a1a;--muted:#6b6b6b;--accent:#c96f2e;--card:#fff;--line:#e8e2d6}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:Georgia,'Times New Roman',serif;line-height:1.6;padding:2rem 1rem}
+.wrap{max-width:760px;margin:0 auto}
+header{text-align:center;margin-bottom:2.5rem}
+.sloth{font-size:3.5rem}
+h1{font-size:2.2rem;letter-spacing:-.02em;margin:.5rem 0}
+.tag{color:var(--muted);font-size:1.05rem;font-style:italic}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.5rem;margin-bottom:1.5rem;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+label{display:block;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-weight:600;font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:.5rem}
+textarea{width:100%;min-height:180px;border:1px solid var(--line);border-radius:8px;padding:.8rem;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:.85rem;background:#fcfbf8;resize:vertical}
+textarea:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+.row{display:flex;gap:.8rem;flex-wrap:wrap;margin:1rem 0}
+select{border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem;font-size:.9rem;background:#fff}
+button{background:var(--ink);color:#fff;border:none;border-radius:8px;padding:.8rem 2rem;font-size:1rem;cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-weight:600;transition:transform .1s}
+button:hover{transform:translateY(-1px)}
+button:disabled{opacity:.5;cursor:wait;transform:none}
+#output{display:none}
+#output.show{display:block}
+.commit-msg{background:#1a1a1a;color:#e8e6e1;border-radius:8px;padding:1rem;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:.9rem;white-space:pre-wrap;margin-bottom:1rem;position:relative}
+.pr-desc{background:#fcfbf8;border:1px solid var(--line);border-radius:8px;padding:1rem;font-size:.95rem;white-space:pre-wrap;margin-bottom:1rem}
+.copybtn{background:var(--accent);padding:.4rem .9rem;font-size:.8rem;margin-top:.5rem}
+footer{text-align:center;color:var(--muted);font-size:.85rem;margin-top:3rem;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+footer a{color:var(--accent)}
+.err{color:#b3261e;background:#fdecea;border-radius:8px;padding:.8rem;margin-top:1rem;display:none}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.hint{font-size:.82rem;color:var(--muted);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin-top:.4rem}
+.kbd{background:#eee;border:1px solid #ddd;border-radius:4px;padding:0 .35rem;font-family:monospace;font-size:.8em}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+<div class="sloth">🦥</div>
+<h1>SlothCommit</h1>
+<p class="tag">Paste your diff. Get a commit message. Go back to napping.</p>
+</header>
+
+<div class="card">
+<label for="diff">Your git diff</label>
+<textarea id="diff" placeholder="Paste output of `git diff --staged` here…"></textarea>
+<p class="hint">Tip: run <span class="kbd">git diff --staged</span> (or <span class="kbd">git diff</span>) in your terminal, copy, paste.</p>
+<div class="row">
+<div>
+<label for="style">Style</label>
+<select id="style">
+<option value="conventional">Conventional Commits</option>
+<option value="simple">Simple</option>
+<option value="emoji">Emoji 🦥</option>
+</select>
+</div>
+<div>
+<label for="detail">PR description</label>
+<select id="detail">
+<option value="yes">Generate it</option>
+<option value="no">Commit msg only</option>
+</select>
+</div>
+</div>
+<button id="go" onclick="generate()">Generate 🦥</button>
+<button id="demobtn" onclick="demoMode()" style="background:var(--accent);margin-left:.5rem">Try sample diff</button>
+<div class="err" id="err"></div>
+</div>
+
+<div class="card" id="output">
+<label>Commit message</label>
+<div class="commit-msg" id="msg"></div>
+<button class="copybtn" onclick="copyMsg()">Copy</button>
+<div style="margin-top:1.2rem" id="prwrap">
+<label>PR description</label>
+<div class="pr-desc" id="pr"></div>
+<button class="copybtn" onclick="copyPr()">Copy</button>
+</div>
+</div>
+
+<footer>
+Built with open-weight AI (Llama 3.1 via Cloudflare Workers AI) · No API keys · No subscriptions · <a href="https://github.com/joemh79/sloth-commit">GitHub</a>
+</footer>
+</div>
+
+<script>
+async function generate(){
+  const diff=document.getElementById('diff').value.trim();
+  const err=document.getElementById('err');
+  err.style.display='none';
+  if(!diff){err.textContent='Paste a diff first — even sloths need something to work with.';err.style.display='block';return;}
+  if(diff.length>12000){err.textContent='Diff too long (12k char limit). Try `git diff --staged --stat` scope or a smaller change.';err.style.display='block';return;}
+  const btn=document.getElementById('go');
+  btn.disabled=true;btn.innerHTML='<span class="spin"></span>Thinking slowly…';
+  try{
+    const r=await fetch('/api/generate',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({diff,style:document.getElementById('style').value,withPr:document.getElementById('detail').value==='yes'})
+    });
+    const d=await r.json();
+    if(!r.ok||!d.commit)throw new Error(d.error||'Generation failed');
+    showResult(d);
+  }catch(e){err.textContent='Live AI is unavailable right now. Try the sample diff to see SlothCommit in action, or run it locally with Ollama (see GitHub README).';err.style.display='block';}
+  btn.disabled=false;btn.textContent='Generate 🦥';
+}
+function copyMsg(){navigator.clipboard.writeText(document.getElementById('msg').textContent);}
+function copyPr(){navigator.clipboard.writeText(document.getElementById('pr').textContent);}
+const SAMPLE='diff --git a/src/pay.js b/src/pay.js\nindex 9a1b2c3..4d5e6f7 100644\n--- a/src/pay.js\n+++ b/src/pay.js\n@@ -18,7 +18,7 @@ function getTotal(item) {\n-  return item.price * 1.1;\n+  return item.price * 1.08;\n }';
+const SAMPLE_OUT={commit:'fix(pay): lower tax multiplier from 1.1 to 1.08\n\n- Update getTotal tax multiplier to match the new 8% rate\n- Keeps pricing consistent with the latest finance policy',pr:'## What changed\n- Lowered the tax multiplier in `getTotal` (src/pay.js) from 1.1 to 1.08\n\n## Why\n- The applicable tax rate dropped to 8%; the old 10% multiplier overcharged customers\n\n## Testing\n- Suggested: verify checkout totals against the new 8% rate for a sample of items'};
+function demoMode(){document.getElementById('diff').value=SAMPLE;showResult(SAMPLE_OUT);}
+function showResult(d){document.getElementById('msg').textContent=d.commit;if(d.pr){document.getElementById('pr').textContent=d.pr;document.getElementById('prwrap').style.display='block';}else{document.getElementById('prwrap').style.display='none';}document.getElementById('output').classList.add('show');document.getElementById('output').scrollIntoView({behavior:'smooth'});}
+</script>
+</body>
+</html>
