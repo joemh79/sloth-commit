@@ -1,3 +1,4 @@
+<img width="1672" height="941" alt="1000002172_2_uh63" src="https://github.com/user-attachments/assets/b890ea3d-7ed7-47e7-9e25-209caadfbea8" />
 [English](./README.md) | 中文
 
 # SlothCommit 🦥
