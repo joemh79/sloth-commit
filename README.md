@@ -21,7 +21,11 @@ Paste your `git diff`, get a clean Conventional Commit message + PR description 
 
 ## Demo
 
-https://github.com/user-attachments/assets/640ea227-66da-4a13-9304-5f65f2d65911
+
+
+https://github.com/user-attachments/assets/3960d5df-d31d-4c91-80c1-d1af42a5b46f
+
+
 
 
 ## What it does
